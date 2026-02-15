@@ -1,0 +1,35 @@
+
+
+
+
+1. How Natural or Unnatural the Chatbot Feels:-
+
+Reggy++ feels moderately natural for a rule-based chatbot, though its structured nature becomes noticeable during longer 
+sessions. The conversation begins smoothly by asking for the user’s full name and then talking to them by their first name, 
+which adds a personal touch. Extracting the surname using the last word generally works well and makes the chatbot appear 
+more attentive. The birthday feature enhances naturalness further. The chatbot accepts multiple formats, such as “15-08-2003” or 
+“21 September 2004,” calculates the user’s age, and then goes logically into mood-based interaction.
+The loop prevents the exchange from feeling like a one-time input-output system. 
+The reflection strategy converting statements like “I am tired” into “Why are you tired?” — gives an impression of engagement. 
+However, despite these features, the chatbot still feels scripted. Responses follow predefined templates, and when user input deviates 
+from expected patterns, the illusion of natural conversation quickly breaks.
+
+2. Strengths of Regex-Based Interaction:-
+
+The main advantage of regex-based design is simplicity and transparency. Every behavior is strictly defined through pattern 
+matching, making the system predictable and easy to debug. The birthday parser demonstrates flexibility by handling numeric 
+and textual formats while resolving simple ambiguities, such as differentiating between dd-mm and mm-dd using logical checks.
+Mood detection is designed to tolerate minor spelling errors like “hapy,” “gud,” or “wll,” improving usability without complex 
+language models. Alternating fallback responses reduce repetition and make the chatbot feel slightly more dynamic. Overall, 
+regex offers lightweight implementation, full control over patterns, and deterministic responses, which are ideal for 
+structured conversational tasks.
+
+3. Limitations and Failure Cases:-
+
+Despite its strengths, the chatbot does not truly understand language; it only matches patterns. Unrecognized date formats, 
+uncommon naming conventions, or indirect emotional expressions can cause failures. The surname extraction assumes the last 
+word is always the surname, which may not hold across cultures. Ambiguous dates like “05-06-07” may also be interpreted 
+incorrectly.
+Mood detection relies entirely on keywords, so subtle emotions may be missed. Additionally, the conversation follows a 
+fixed order, reducing flexibility. While Reggy++ simulates structured dialogue effectively, it lacks contextual understanding 
+and genuine conversational intelligence.

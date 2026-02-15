@@ -1,69 +1,62 @@
-# b23cs1061_prob3.py
-# Naive Bayes Sentiment Classifier - implemented from scratch
 # Roll Number: B23CS1061
-# Course: CSL7640 - Natural Language Understanding
-#
-# Usage: python b23cs1061_prob3.py
-# Reads pos.txt and neg.txt from the same directory,
-# trains a Naive Bayes model, then enters interactive prediction mode.
+# Program reads pos.txt and neg.txt from the same directory,
 
+
+# I have used only the allowed standard library imports here.
 import os
 import random
 import math
 
 
-# ---- Tokenization ----
-# simple whitespace split + lowercase, as required
+# I have written this function to split a sentence into words.
+# .strip() removes whitespace, .lower() converts to lowercase, .split() breaks by spaces.
 def tokenize(sentence):
     words = sentence.strip().lower().split()
     return words
 
 
-# ---- Data Loading ----
+# I have written this function to read the data from a file.
+# each line in the file is one sentence.
 def load_data(filepath):
-    """Read file line by line, each line is one sentence."""
     sentences = []
     with open(filepath, "r") as f:
         for line in f:
             line = line.strip()
-            if line:  # skip empty lines
+            if line:  # skipping empty lines
                 sentences.append(line)
     return sentences
 
 
-# ---- Train/Test Split ----
+# I have written this function to shuffle and split data into train and test sets.
+# using 80-20 split with a fixed seed so results are same every time.
 def split_data(sentences, train_ratio=0.8):
-    """Shuffle and split data into train and test sets."""
     shuffled = sentences[:]
-    random.seed(42)  # fixed seed so results are reproducible
+    random.seed(42)  # fixed seed for reproducibility
     random.shuffle(shuffled)
     split_point = int(len(shuffled) * train_ratio)
     return shuffled[:split_point], shuffled[split_point:]
 
 
-# ---- Naive Bayes Training ----
+# I have written this function to train the Naive Bayes model.
+# it calculates P(positive) and P(negative) as prior probabilities
+# and P(word | class) for each word as likelihood with Laplace smoothing.
 def train_naive_bayes(pos_train, neg_train):
-    """
-    Train the Naive Bayes model.
-    We need:
-      - P(positive) and P(negative) => prior probabilities
-      - P(word | class) for each word => likelihood with Laplace smoothing
-    """
-    # count total documents in each class
+
+    # counting total documents in each class
     total_docs = len(pos_train) + len(neg_train)
     prior_pos = len(pos_train) / total_docs
     prior_neg = len(neg_train) / total_docs
 
-    # count word frequencies in each class
+    # these dictionaries will store word frequencies for each class
     pos_word_counts = {}
     neg_word_counts = {}
     pos_total_words = 0
     neg_total_words = 0
 
-    # build vocabulary (all unique words across both classes)
+    # building vocabulary which is all unique words across both classes
     vocab = set()
 
-    # count words in positive sentences
+    # counting words in positive sentences
     for sentence in pos_train:
         words = tokenize(sentence)
         for w in words:
@@ -71,7 +64,7 @@ def train_naive_bayes(pos_train, neg_train):
             pos_word_counts[w] = pos_word_counts.get(w, 0) + 1
             pos_total_words += 1
 
-    # count words in negative sentences
+    # counting words in negative sentences
     for sentence in neg_train:
         words = tokenize(sentence)
         for w in words:
@@ -81,7 +74,7 @@ def train_naive_bayes(pos_train, neg_train):
 
     vocab_size = len(vocab)
 
-    # store everything we need for prediction in a dictionary
+    # storing everything needed for prediction in a dictionary
     model = {
         "prior_pos": prior_pos,
         "prior_neg": prior_neg,
@@ -96,16 +89,13 @@ def train_naive_bayes(pos_train, neg_train):
     return model
 
 
-# ---- Prediction ----
+# I have written this function to predict sentiment of a sentence.
+# it uses log probabilities to avoid underflow with many multiplications.
+# Laplace smoothing formula: P(word|class) = (count + 1) / (total + vocab_size)
 def predict(model, sentence):
-    """
-    Predict sentiment of a sentence using trained Naive Bayes model.
-    Uses log probabilities to avoid underflow with many multiplications.
-    Applies Laplace smoothing: P(word|class) = (count + 1) / (total + vocab_size)
-    """
     words = tokenize(sentence)
 
-    # start with log of prior probabilities
+    # starting with log of prior probabilities
     log_prob_pos = math.log(model["prior_pos"])
     log_prob_neg = math.log(model["prior_neg"])
 
@@ -129,20 +119,19 @@ def predict(model, sentence):
         return "NEGATIVE", log_prob_pos, log_prob_neg
 
 
-# ---- Evaluation ----
+# I have written this function to test the model on held-out data and print accuracy.
 def evaluate(model, test_pos, test_neg):
-    """Test the model on held-out data and print accuracy."""
     correct = 0
     total = 0
 
-    # test on positive sentences
+    # testing on positive sentences
     for sentence in test_pos:
         label, _, _ = predict(model, sentence)
         if label == "POSITIVE":
             correct += 1
         total += 1
 
-    # test on negative sentences
+    # testing on negative sentences
     for sentence in test_neg:
         label, _, _ = predict(model, sentence)
         if label == "NEGATIVE":
@@ -153,28 +142,28 @@ def evaluate(model, test_pos, test_neg):
     return correct, total, accuracy
 
 
-# ---- Main ----
+# This is the main function that loads data, trains model, evaluates and runs interactive mode.
 def main():
-    # figure out directory where this script is located
-    # so we can find pos.txt and neg.txt in the same folder
+    # finding the directory where this script is located
+    # so I can find pos.txt and neg.txt in the same folder
     script_dir = os.path.dirname(os.path.abspath(__file__))
     pos_file = os.path.join(script_dir, "pos.txt")
     neg_file = os.path.join(script_dir, "neg.txt")
 
-    # load data
+    # loading data from both files
     print("Loading data...")
     pos_sentences = load_data(pos_file)
     neg_sentences = load_data(neg_file)
     print(f"  Positive sentences: {len(pos_sentences)}")
     print(f"  Negative sentences: {len(neg_sentences)}")
 
-    # split into train and test (80-20 split)
+    # splitting into train and test with 80-20 ratio
     pos_train, pos_test = split_data(pos_sentences, train_ratio=0.8)
     neg_train, neg_test = split_data(neg_sentences, train_ratio=0.8)
     print(f"\nTraining set: {len(pos_train)} positive, {len(neg_train)} negative")
     print(f"Test set:     {len(pos_test)} positive, {len(neg_test)} negative")
 
-    # train the model
+    # training the model
     print("\nTraining Naive Bayes model...")
     model = train_naive_bayes(pos_train, neg_train)
     print(f"  Vocabulary size: {model['vocab_size']}")
@@ -182,11 +171,11 @@ def main():
     print(f"  Prior P(negative): {model['prior_neg']:.4f}")
     print("Training complete!")
 
-    # evaluate on test set
+    # evaluating on the test set
     correct, total, accuracy = evaluate(model, pos_test, neg_test)
     print(f"\nTest Accuracy: {correct}/{total} = {accuracy * 100:.2f}%")
 
-    # interactive mode
+    # interactive mode where user can type sentences and get predictions
     print("\n" + "=" * 50)
     print("INTERACTIVE SENTIMENT PREDICTION")
     print("=" * 50)
@@ -211,5 +200,6 @@ def main():
         print()
 
 
+# this runs the program when executed from terminal
 if __name__ == "__main__":
     main()

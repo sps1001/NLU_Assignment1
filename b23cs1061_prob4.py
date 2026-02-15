@@ -1,53 +1,63 @@
-# b23cs1061_prob4.py
-# Sports vs Politics Document Classifier
 # Roll Number: B23CS1061
-# Course: CSL7640 - Natural Language Understanding
-#
-# This script compares three ML techniques for classifying text documents
-# as either Sports or Politics using different feature representations.
-#
-# Usage: python b23cs1061_prob4.py
 
+
+# I have used only the allowed standard library imports here.
 import os
 import re
+import csv
 import math
 import random
 from collections import Counter, defaultdict
 
 
-# ========================================
-# DATA LOADING AND PREPROCESSING
-# ========================================
-
-def load_dataset(sports_file, politics_file):
-    """Load sports and politics text files, return list of (text, label) tuples."""
+# I have written this function to load sports and politics data from the CSV file.
+# it reads the CSV and filters only rows with category SPORTS or POLITICS.
+# I am using short_description as the text since headlines are too short for good classification.
+def load_dataset(csv_file, max_per_class=100):
     data = []
+    sports_count = 0
+    politics_count = 0
 
-    with open(sports_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                data.append((line, "SPORTS"))
+    with open(csv_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            category = row.get("category", "").strip().upper()
+            # using short_description as text, falling back to headline if empty
+            text = row.get("short_description", "").strip()
+            if not text:
+                text = row.get("headline", "").strip()
+            if not text:
+                continue
+            # cleaning up extra whitespace and newlines
+            text = " ".join(text.split())
 
-    with open(politics_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                data.append((line, "POLITICS"))
+            if category == "SPORTS" and sports_count < max_per_class:
+                data.append((text, "SPORTS"))
+                sports_count += 1
+            elif category == "POLITICS" and politics_count < max_per_class:
+                data.append((text, "POLITICS"))
+                politics_count += 1
+
+            # stop early if we have enough of both
+            if sports_count >= max_per_class and politics_count >= max_per_class:
+                break
 
     return data
 
 
+# I have written this function to preprocess text.
+# .lower() converts to lowercase, re.sub removes punctuation, .split() breaks into words.
 def preprocess(text):
-    """Lowercase and remove punctuation, return list of words."""
     text = text.lower()
+    # r"[^a-z0-9\s]" -> this regex removes everything except letters, numbers, spaces
     text = re.sub(r"[^a-z0-9\s]", "", text)
     words = text.split()
     return words
 
 
+# I have written this function to generate n-grams from a list of words.
+# for example bigrams of ["the", "match", "was"] gives ["the match", "match was"]
 def get_ngrams(words, n):
-    """Generate n-grams from a list of words."""
     ngrams = []
     for i in range(len(words) - n + 1):
         ngram = " ".join(words[i:i + n])
@@ -55,8 +65,9 @@ def get_ngrams(words, n):
     return ngrams
 
 
+# I have written this function to shuffle and split data into train and test.
+# using fixed seed so results are same every time I run it.
 def train_test_split(data, train_ratio=0.8, seed=42):
-    """Shuffle and split data into train and test."""
     shuffled = data[:]
     random.seed(seed)
     random.shuffle(shuffled)
@@ -64,12 +75,9 @@ def train_test_split(data, train_ratio=0.8, seed=42):
     return shuffled[:split], shuffled[split:]
 
 
-# ========================================
-# FEATURE EXTRACTION
-# ========================================
-
+# I have written this function to build vocabulary from training data.
+# use_ngrams=1 means only unigrams, use_ngrams=2 means unigrams + bigrams.
 def build_vocabulary(train_data, use_ngrams=1):
-    """Build vocabulary from training data. use_ngrams=1 for unigrams, 2 for bigrams etc."""
     vocab = set()
     for text, label in train_data:
         words = preprocess(text)
@@ -83,8 +91,9 @@ def build_vocabulary(train_data, use_ngrams=1):
     return sorted(vocab)
 
 
+# I have written this function to convert text to bag-of-words vector.
+# it counts how many times each vocab word appears in the text.
 def bag_of_words(text, vocab):
-    """Convert text to bag-of-words vector using given vocabulary."""
     words = preprocess(text)
     word_counts = Counter(words)
     vector = []
@@ -93,8 +102,9 @@ def bag_of_words(text, vocab):
     return vector
 
 
+# I have written this function to compute term frequency for each word.
+# TF = count of word in document / total words in document
 def compute_tf(text, vocab):
-    """Compute term frequency for each vocab word in the text."""
     words = preprocess(text)
     word_counts = Counter(words)
     total = len(words) if len(words) > 0 else 1
@@ -104,8 +114,9 @@ def compute_tf(text, vocab):
     return tf
 
 
+# I have written this function to compute inverse document frequency.
+# IDF tells us how rare a word is across all documents.
 def compute_idf(train_data, vocab):
-    """Compute inverse document frequency for each vocab word."""
     N = len(train_data)
     doc_counts = defaultdict(int)
 
@@ -117,14 +128,15 @@ def compute_idf(train_data, vocab):
 
     idf = []
     for v in vocab:
-        # add 1 to avoid division by zero (smoothing)
+        # adding 1 to avoid division by zero
         idf_val = math.log((N + 1) / (doc_counts[v] + 1)) + 1
         idf.append(idf_val)
     return idf
 
 
+# I have written this function to compute TF-IDF vector for a document.
+# TF-IDF = TF * IDF for each word.
 def compute_tfidf(text, vocab, idf_values):
-    """Compute TF-IDF vector for a document."""
     tf = compute_tf(text, vocab)
     tfidf = []
     for i in range(len(vocab)):
@@ -132,8 +144,9 @@ def compute_tfidf(text, vocab, idf_values):
     return tfidf
 
 
+# I have written this function to convert text to n-gram based feature vector.
+# it creates both unigrams and bigrams and counts their occurrences.
 def ngram_features(text, vocab, n=2):
-    """Convert text to n-gram based feature vector."""
     words = preprocess(text)
     all_grams = []
     for i in range(1, n + 1):
@@ -145,12 +158,9 @@ def ngram_features(text, vocab, n=2):
     return vector
 
 
-# ========================================
-# CLASSIFIER 1: NAIVE BAYES
-# ========================================
-
+# I have written the Naive Bayes classifier class here.
+# it uses Multinomial Naive Bayes with Laplace smoothing.
 class NaiveBayesClassifier:
-    """Multinomial Naive Bayes with Laplace smoothing."""
 
     def __init__(self):
         self.class_priors = {}
@@ -162,11 +172,11 @@ class NaiveBayesClassifier:
         n_samples = len(y)
 
         for c in self.classes:
-            # get indices of samples belonging to this class
+            # getting indices of samples that belong to this class
             class_indices = [i for i in range(n_samples) if y[i] == c]
             self.class_priors[c] = len(class_indices) / n_samples
 
-            # sum up feature counts for this class
+            # summing up feature counts for this class
             n_features = len(X[0])
             feature_sums = [0] * n_features
             for idx in class_indices:
@@ -174,7 +184,7 @@ class NaiveBayesClassifier:
                     feature_sums[j] += X[idx][j]
 
             total = sum(feature_sums)
-            # Laplace smoothed probabilities
+            # applying Laplace smoothing: (count + 1) / (total + num_features)
             self.feature_probs[c] = []
             for j in range(n_features):
                 prob = (feature_sums[j] + 1) / (total + n_features)
@@ -186,6 +196,7 @@ class NaiveBayesClassifier:
             best_class = None
             best_score = float("-inf")
             for c in self.classes:
+                # using log probabilities to avoid underflow
                 score = math.log(self.class_priors[c])
                 for j in range(len(sample)):
                     if sample[j] > 0:
@@ -197,12 +208,9 @@ class NaiveBayesClassifier:
         return predictions
 
 
-# ========================================
-# CLASSIFIER 2: LOGISTIC REGRESSION (from scratch)
-# ========================================
-
+# I have written the Logistic Regression classifier class here.
+# it uses binary logistic regression with sigmoid and gradient descent.
 class LogisticRegressionClassifier:
-    """Simple binary logistic regression using gradient descent."""
 
     def __init__(self, lr=0.01, epochs=200):
         self.lr = lr
@@ -212,13 +220,14 @@ class LogisticRegressionClassifier:
         self.label_map = {}
         self.inv_label_map = {}
 
+    # sigmoid function: 1 / (1 + e^(-z))
     def sigmoid(self, z):
-        # clip to prevent overflow
+        # clipping z to prevent overflow in math.exp
         z = max(-500, min(500, z))
         return 1.0 / (1.0 + math.exp(-z))
 
     def train(self, X, y):
-        # map labels to 0 and 1
+        # mapping labels to 0 and 1 for binary classification
         unique_labels = list(set(y))
         self.label_map = {unique_labels[0]: 0, unique_labels[1]: 1}
         self.inv_label_map = {0: unique_labels[0], 1: unique_labels[1]}
@@ -227,24 +236,22 @@ class LogisticRegressionClassifier:
         n_features = len(X[0])
         n_samples = len(X)
 
-        # initialize weights to small random values
+        # initializing weights to small random values
         random.seed(42)
         self.weights = [random.uniform(-0.01, 0.01) for _ in range(n_features)]
         self.bias = 0
 
-        # gradient descent
+        # running gradient descent for specified number of epochs
         for epoch in range(self.epochs):
             for i in range(n_samples):
-                # compute prediction
+                # computing prediction using sigmoid
                 z = self.bias
                 for j in range(n_features):
                     z += self.weights[j] * X[i][j]
                 pred = self.sigmoid(z)
 
-                # compute error
+                # computing error and updating weights
                 error = pred - y_binary[i]
-
-                # update weights
                 for j in range(n_features):
                     self.weights[j] -= self.lr * error * X[i][j]
                 self.bias -= self.lr * error
@@ -256,25 +263,24 @@ class LogisticRegressionClassifier:
             for j in range(len(sample)):
                 z += self.weights[j] * sample[j]
             pred = self.sigmoid(z)
+            # if prediction >= 0.5 then class 1, else class 0
             label = 1 if pred >= 0.5 else 0
             predictions.append(self.inv_label_map[label])
         return predictions
 
 
-# ========================================
-# CLASSIFIER 3: KNN (K-Nearest Neighbors)
-# ========================================
-
+# I have written the KNN classifier class here.
+# it uses K-Nearest Neighbors with cosine similarity.
 class KNNClassifier:
-    """K-Nearest Neighbors classifier using cosine similarity."""
 
     def __init__(self, k=5):
         self.k = k
         self.X_train = None
         self.y_train = None
 
+    # I have written this function to compute cosine similarity between two vectors.
+    # formula: (a . b) / (||a|| * ||b||)
     def cosine_similarity(self, a, b):
-        """Compute cosine similarity between two vectors."""
         dot = sum(x * y for x, y in zip(a, b))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(x * x for x in b))
@@ -283,40 +289,37 @@ class KNNClassifier:
         return dot / (norm_a * norm_b)
 
     def train(self, X, y):
-        # KNN is lazy — just store the training data
+        # KNN is lazy learner so it just stores the training data
         self.X_train = X
         self.y_train = y
 
     def predict(self, X):
         predictions = []
         for sample in X:
-            # find distances to all training samples
+            # finding similarity to all training samples
             similarities = []
             for i in range(len(self.X_train)):
                 sim = self.cosine_similarity(sample, self.X_train[i])
                 similarities.append((sim, self.y_train[i]))
 
-            # sort by similarity (highest first) and pick top K
+            # sorting by similarity (highest first) and picking top K
             similarities.sort(key=lambda x: x[0], reverse=True)
             top_k = similarities[:self.k]
 
-            # majority vote
+            # doing majority vote among K nearest neighbors
             votes = Counter([label for _, label in top_k])
             predictions.append(votes.most_common(1)[0][0])
         return predictions
 
 
-# ========================================
-# EVALUATION METRICS
-# ========================================
-
+# I have written this function to compute accuracy.
 def compute_accuracy(y_true, y_pred):
     correct = sum(1 for t, p in zip(y_true, y_pred) if t == p)
     return correct / len(y_true) if y_true else 0
 
 
+# I have written this function to compute precision, recall and F1 for a given class.
 def compute_precision_recall_f1(y_true, y_pred, positive_class):
-    """Compute precision, recall, F1 for a given class."""
     tp = sum(1 for t, p in zip(y_true, y_pred) if t == positive_class and p == positive_class)
     fp = sum(1 for t, p in zip(y_true, y_pred) if t != positive_class and p == positive_class)
     fn = sum(1 for t, p in zip(y_true, y_pred) if t == positive_class and p != positive_class)
@@ -328,23 +331,21 @@ def compute_precision_recall_f1(y_true, y_pred, positive_class):
     return precision, recall, f1
 
 
+# I have written this function to build a confusion matrix.
 def confusion_matrix(y_true, y_pred, classes):
-    """Build and return confusion matrix as dict."""
     matrix = {c1: {c2: 0 for c2 in classes} for c1 in classes}
     for t, p in zip(y_true, y_pred):
         matrix[t][p] += 1
     return matrix
 
 
+# I have written this function to print the confusion matrix nicely.
 def print_confusion_matrix(matrix, classes):
-    """Pretty print the confusion matrix."""
-    # header
     header = "Actual \\ Predicted"
     print(f"  {header:>20s}", end="")
     for c in classes:
         print(f"  {c:>10s}", end="")
     print()
-    # rows
     for c1 in classes:
         print(f"  {c1:>20s}", end="")
         for c2 in classes:
@@ -352,12 +353,9 @@ def print_confusion_matrix(matrix, classes):
         print()
 
 
-# ========================================
-# MAIN - RUN ALL EXPERIMENTS
-# ========================================
-
+# I have written this function to train a classifier and evaluate it.
+# it prints accuracy, precision, recall, f1 and confusion matrix.
 def run_experiment(classifier, clf_name, X_train, y_train, X_test, y_test, classes):
-    """Train a classifier and evaluate it, returning results dict."""
     classifier.train(X_train, y_train)
     y_pred = classifier.predict(X_test)
 
@@ -379,21 +377,21 @@ def run_experiment(classifier, clf_name, X_train, y_train, X_test, y_test, class
     return {"name": clf_name, "accuracy": acc, "predictions": y_pred}
 
 
+# This is the main function that runs all 3 experiments and compares them.
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sports_file = os.path.join(script_dir, "sports.txt")
-    politics_file = os.path.join(script_dir, "politics.txt")
+    csv_file = os.path.join(script_dir, "newscategorizer.csv")
 
-    # load data
-    print("Loading dataset...")
-    data = load_dataset(sports_file, politics_file)
+    # loading data directly from CSV, filtering sports and politics only
+    print("Loading dataset from newscategorizer.csv...")
+    data = load_dataset(csv_file, max_per_class=200)
     print(f"  Total samples: {len(data)}")
 
     sports_count = sum(1 for _, l in data if l == "SPORTS")
     politics_count = sum(1 for _, l in data if l == "POLITICS")
     print(f"  Sports: {sports_count}, Politics: {politics_count}")
 
-    # split into train and test
+    # splitting into train and test with 80-20 ratio
     train_data, test_data = train_test_split(data, train_ratio=0.8)
     print(f"\n  Train: {len(train_data)}, Test: {len(test_data)}")
 
@@ -403,7 +401,7 @@ def main():
 
     all_results = []
 
-    # ---- EXPERIMENT 1: Naive Bayes + Bag of Words ----
+    # Experiment 1: Naive Bayes with Bag of Words features
     print("\n" + "#" * 55)
     print("  EXPERIMENT 1: Naive Bayes + Bag of Words")
     print("#" * 55)
@@ -417,7 +415,7 @@ def main():
     result = run_experiment(nb, "Naive Bayes + BoW", X_train_bow, y_train, X_test_bow, y_test, classes)
     all_results.append(result)
 
-    # ---- EXPERIMENT 2: Logistic Regression + TF-IDF ----
+    # Experiment 2: Logistic Regression with TF-IDF features
     print("\n" + "#" * 55)
     print("  EXPERIMENT 2: Logistic Regression + TF-IDF")
     print("#" * 55)
@@ -430,7 +428,7 @@ def main():
     result = run_experiment(lr, "Logistic Regression + TF-IDF", X_train_tfidf, y_train, X_test_tfidf, y_test, classes)
     all_results.append(result)
 
-    # ---- EXPERIMENT 3: KNN + Bigram Features ----
+    # Experiment 3: KNN with Bigram features
     print("\n" + "#" * 55)
     print("  EXPERIMENT 3: KNN + Bigram Features")
     print("#" * 55)
@@ -444,7 +442,7 @@ def main():
     result = run_experiment(knn, "KNN (k=5) + Bigrams", X_train_ng, y_train, X_test_ng, y_test, classes)
     all_results.append(result)
 
-    # ---- FINAL COMPARISON ----
+    # printing final comparison of all 3 techniques
     print("\n" + "=" * 55)
     print("  FINAL COMPARISON")
     print("=" * 55)
@@ -453,11 +451,12 @@ def main():
     for r in all_results:
         print(f"  {r['name']:<35s}   {r['accuracy'] * 100:.2f}%")
 
-    # find best
+    # finding the best performing technique
     best = max(all_results, key=lambda x: x["accuracy"])
     print(f"\n  Best performing: {best['name']} ({best['accuracy'] * 100:.2f}%)")
     print("=" * 55)
 
 
+# this runs the program when executed from terminal
 if __name__ == "__main__":
     main()
