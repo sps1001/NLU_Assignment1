@@ -24,3 +24,4 @@ Thumbs.db
 
 # CSV datasets (too large for git)
 *.csv
+extras/
